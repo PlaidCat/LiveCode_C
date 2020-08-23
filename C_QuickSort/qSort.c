@@ -8,17 +8,12 @@
 //
 //  everythcing will be stored in heap arrays
 // 
-//  2020.08.16 - Completed
-//  * Basic framework inplace
-//  * Some Basic test conditions
 //
-//  Before Next Stream.  Get a GitHub public account.
-//
+// Trying VS Code to make this clearer
+// 
 //  Next time:
 //  * Input for Files and basic bash frame work.
-//  * (Input from viewer) Better colors, does it build marker
-//    * Look into VSCode more?
-//    * I'm too much of a remote dev to the sea of text doesn't bother me.
+//  * C lookup for defs
 //
 //
 //*****************************************************************************

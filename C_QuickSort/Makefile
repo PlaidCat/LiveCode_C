@@ -48,11 +48,14 @@ CFLAGS = -Wall -g -O2 -m64
 LIBS = -lm -lpthread
 #CFLAGS = -O2
 
-all: qSort
+all: qSort qGenUnsorted
 
 qSort: qSort.o
 	$(C) $(CFLAGS) $(LIBS) -o qSort qSort.c
 
+qGenUnsorted: qSortGenerate.o
+	$(C) $(CFLAGS) $(LIBS) -o qGenUnsorted qSortGenerate.c
+
 clean:
-	rm -f core qSort *~ *.0
+	rm -f core qGenUnsorted qSort *~ *.0
 

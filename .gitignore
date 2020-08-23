@@ -1,3 +1,6 @@
+# DataFiles
+./*/data_files/*.txt
+
 # Prerequisites
 *.d
 
