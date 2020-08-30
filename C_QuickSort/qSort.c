@@ -13,7 +13,6 @@
 // 
 //  Next time:
 //  * Input for Files and basic bash frame work.
-//  * C lookup for defs
 //
 //
 //*****************************************************************************
@@ -21,41 +20,74 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <string.h>
 
 
 //__ProtoTypes_______
 //___Validation and Testing__________
 int testSorter();
-int isSorted(unsigned int *arr, int arrSize);
+int isSorted(unsigned int *arr, unsigned long arrSize);
 unsigned int *loadBadArr();
+
+//__Ingestion__
+
 
 //__Information____
 void printArray(unsigned int *arr, unsigned int arrSize);
 
 //__Memory Management_____
 unsigned int *createRandomArray(unsigned int size);
+unsigned int *load_file(char *file, unsigned int *size);
 void freeArray(unsigned int *arr);
 
 //__Quick Sort___
 //This is recursive
-void qSort(unsigned int *arr, unsigned int start, unsigned int end);
-unsigned int qPartition(unsigned int *arr, unsigned int start, unsigned int end, unsigned int index);
+void qSort(unsigned int *arr, unsigned long start, unsigned long end);
+unsigned long qPartition(unsigned int *arr, unsigned long start, unsigned long end, unsigned long index);
 
 //___MAIN____
 int main(int argc, char *argv[]) {
     int res;
-    unsigned int *arr;
-    unsigned int size = 20000;
+    unsigned int *arr = NULL;
+    unsigned int size = 0;
+    struct timespec load_start={0,0}, load_end={0,0};
+    struct timespec qSort_start={0,0}, qSort_end={0,0}; 
     
     res = testSorter();
     if (res == 0)
         return -1;
 
-    arr = createRandomArray(size);
-    //arr = loadBadArr();
-    printArray(arr, size);
-    qSort(arr, 0,  size-1);
-    printArray(arr, size);
+    if (argc == 1){
+        size = 20000;
+        arr = createRandomArray(size);
+        //arr = loadBadArr();
+        printArray(arr, size);
+        qSort(arr, 0,  size-1);
+        printArray(arr, size);
+    } else if (argc == 2){
+        printf("Loading File %s\n", argv[1]);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &load_start);
+        arr = load_file(argv[1], &size);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &load_end);
+        printf("running quick sort\n");
+        clock_gettime(CLOCK_MONOTONIC_RAW, &qSort_start);
+        qSort(arr, 0, size-1);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &qSort_end);
+
+        if(load_end.tv_nsec < load_start.tv_nsec){
+            load_end.tv_nsec += 1000000000;
+            load_end.tv_sec--;
+        }
+        if(qSort_end.tv_nsec < qSort_start.tv_nsec){
+            qSort_end.tv_nsec += 1000000000;
+            qSort_end.tv_sec--;
+        }
+
+        printf("Loading File Took: %ld.%09ld\n", 
+            (long)(load_end.tv_sec - load_start.tv_sec), (load_end.tv_nsec - load_start.tv_nsec));
+        printf("QSort took: %ld.%09ld\n",
+            (long)(qSort_end.tv_sec - qSort_start.tv_sec), (qSort_end.tv_nsec - qSort_start.tv_nsec));
+    }
 
     res = isSorted(arr, size);
     if (res)
@@ -68,6 +100,45 @@ int main(int argc, char *argv[]) {
     return res;
 }
 
+unsigned int *load_file(char *file, unsigned int *size){
+    FILE *fp = NULL;
+    unsigned int *arr = NULL;
+    char *line = NULL;
+    size_t n = 0;
+    ssize_t count;
+    (*size) = 0;
+    unsigned int i;
+
+
+    fp = fopen(file, "r");
+    if (fp == NULL){
+        *size = 0;
+        return NULL;
+    }
+
+    count = getline(&line, &n, fp);
+    if(count != 1){
+        (*size) = (unsigned int)strtoul(line, NULL, 10);
+    }
+
+    arr = (unsigned int *)malloc(sizeof(unsigned int) * (*size));
+
+    i = 0;
+    while( ((count = getline(&line, &n, fp)) != -1) &&   (i < *size) ){
+        arr[i] = (unsigned int)strtoul(line, NULL, 10);
+        i ++;
+    }
+    
+    if(line != NULL)
+        free(line);
+    
+    if(fp != NULL)
+        fclose(fp);
+
+    return arr;
+
+}
+
 void printArray(unsigned int *arr, unsigned int arrSize){
     unsigned int i;
 
@@ -75,7 +146,7 @@ void printArray(unsigned int *arr, unsigned int arrSize){
 
     //crappy print
     for (i=0; i < arrSize; ++i){
-        printf("%u ", arr[i]);
+        printf("%u\n", arr[i]);
         
         if ( i % 10)
             fflush(stdin);
@@ -105,28 +176,31 @@ void freeArray(unsigned int *arr){
 }
 
 //___QuickSort___
-void qSort(unsigned int *arr, unsigned int start, unsigned int end){
-    static int c = 1;
-//    printf("qSort Iteration %d\t Sorting Indexes %u -> %u\n", c, start, end);
+void qSort(unsigned int *arr, unsigned long start, unsigned long end){
+    static unsigned long c = 1;
 
-    c = c + 1;
+    if ( (c % 1000000) == 0){
+        printf("qSort Iteration %lu\t Sorting Indexes %lu -> %lu\n", c, start, end);
+    }
+
+    c = c + 1; 
     if (start < end) {
-        unsigned int pivot = qPartition(arr, start, end, start);
+        unsigned long pivot = qPartition(arr, start, end, start);
 
         //Sort less than Pivot
         if(pivot >0)
             qSort(arr, start, pivot -1);
         //Sort Greater than Pivot 
-        if(pivot >0)
-            qSort(arr, pivot+1, end);
+
+        qSort(arr, pivot+1, end);
     }
         
 }
 
-unsigned int qPartition(unsigned int *arr, unsigned int start, unsigned int end, unsigned int index){
+unsigned long qPartition(unsigned int *arr, unsigned long start, unsigned long end, unsigned long index){
     unsigned int indexVal = arr[index];
     unsigned int swapper;
-    unsigned int i, loc;
+    unsigned long i, loc;
     
 //    printf("\tworking on Start: %u -- End: %u -- index: %u\n", start, end, index);
 
@@ -138,7 +212,6 @@ unsigned int qPartition(unsigned int *arr, unsigned int start, unsigned int end,
     loc = start;
     for (i=start; i < end; ++i){
         if (arr[i] <= indexVal){
-//            printf("\tswapping [%u]%u and [%u]%u because the pivot %u\n", i, arr[i], loc, arr[loc], indexVal);
             swapper = arr[i];
             arr[i] = arr[loc];
             arr[loc] = swapper;
@@ -149,8 +222,6 @@ unsigned int qPartition(unsigned int *arr, unsigned int start, unsigned int end,
     swapper = arr[loc];
     arr[loc] = arr[end];
     arr[end] = swapper;
-    
-//    printf("\tLoc/Pivot Returned: %u\n", loc);
     
     return loc;
 }
@@ -194,8 +265,8 @@ int testSorter(){
     return results;
 }
 
-int isSorted(unsigned int *arr, int arrSize){
-    int i;
+int isSorted(unsigned int *arr, unsigned long arrSize){
+    unsigned long i;
 
     //Assume if its Null Return
     if (arrSize == 0) return 1;
@@ -203,8 +274,10 @@ int isSorted(unsigned int *arr, int arrSize){
     if (arrSize == 1) return 1;
 
     for (i=1; i < arrSize; ++i){
-        if (arr[i-1] > arr[i])
+        if (arr[i-1] > arr[i]){
+            printf("[%lu] arr[%lu]:%u > arr[%lu]:%u\n", i, i-1, arr[i-1], i, arr[i]);
             return 0; //Fail Fast
+        }
     }
 
     return 1;

@@ -74,7 +74,7 @@ int GenFile(generator *my_array){
 
     srand48(time(NULL));
 
-    for (; i <= my_array->size; ++i){
+    for (; i < my_array->size; ++i){
         fprintf(my_array->fp, "%u\n", (unsigned int)lrand48());
         if ((i % 100) == 0)
             fflush(my_array->fp);
