@@ -21,13 +21,25 @@
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
+#include <pthread.h>
+#include <errno.h>
+#include <unistd.h>
 
+//GLOBALS
+typedef struct{
+    int DEBUG;
+    int threads;
+    char *file;
+} config;
+
+config my_config;
 
 //__ProtoTypes_______
 //___Validation and Testing__________
 int testSorter();
 int isSorted(unsigned int *arr, unsigned long arrSize);
 unsigned int *loadBadArr();
+int parse_input(int argc, char *argv[]);
 
 //__Ingestion__
 
@@ -52,24 +64,39 @@ int main(int argc, char *argv[]) {
     unsigned int size = 0;
     struct timespec load_start={0,0}, load_end={0,0};
     struct timespec qSort_start={0,0}, qSort_end={0,0}; 
-    
-    res = testSorter();
-    if (res == 0)
-        return -1;
 
-    if (argc == 1){
+    my_config.file = NULL;
+    my_config.DEBUG = 0;
+    my_config.threads = 1;
+
+    res = parse_input(argc, argv);
+    if (res){
+        fprintf(stderr, "Failed to Parse ... Exiting\n");
+        exit(1);
+    }
+    
+    if (my_config.DEBUG) {
+        res = testSorter();
+        if (res == 0)
+            return -1;       
+    }
+
+    if (my_config.file == NULL) {
         size = 20000;
         arr = createRandomArray(size);
         //arr = loadBadArr();
         printArray(arr, size);
         qSort(arr, 0,  size-1);
         printArray(arr, size);
-    } else if (argc == 2){
-        printf("Loading File %s\n", argv[1]);
+    }else {
         clock_gettime(CLOCK_MONOTONIC_RAW, &load_start);
-        arr = load_file(argv[1], &size);
+        arr = load_file(my_config.file, &size);
+        if (arr == NULL){
+            fprintf(stderr, "Failed to load array from file: %\n ... Exiting\n", my_config.file);
+            return -1;
+        }
         clock_gettime(CLOCK_MONOTONIC_RAW, &load_end);
-        printf("running quick sort\n");
+                
         clock_gettime(CLOCK_MONOTONIC_RAW, &qSort_start);
         qSort(arr, 0, size-1);
         clock_gettime(CLOCK_MONOTONIC_RAW, &qSort_end);
@@ -179,7 +206,7 @@ void freeArray(unsigned int *arr){
 void qSort(unsigned int *arr, unsigned long start, unsigned long end){
     static unsigned long c = 1;
 
-    if ( (c % 1000000) == 0){
+    if ( my_config.DEBUG && (c % 1000000) == 0){
         printf("qSort Iteration %lu\t Sorting Indexes %lu -> %lu\n", c, start, end);
     }
 
@@ -226,7 +253,8 @@ unsigned long qPartition(unsigned int *arr, unsigned long start, unsigned long e
     return loc;
 }
 
-//___Validation and Testing__________
+//_START_Validation and Testing__________
+
 int testSorter(){
     unsigned int *sortedTestTrue;
     unsigned int *sortedTestFalse;
@@ -275,7 +303,9 @@ int isSorted(unsigned int *arr, unsigned long arrSize){
 
     for (i=1; i < arrSize; ++i){
         if (arr[i-1] > arr[i]){
-            printf("[%lu] arr[%lu]:%u > arr[%lu]:%u\n", i, i-1, arr[i-1], i, arr[i]);
+            if(my_config.DEBUG)
+                printf("[%lu] arr[%lu]:%u > arr[%lu]:%u\n", i, i-1, arr[i-1], i, arr[i]);
+                
             return 0; //Fail Fast
         }
     }
@@ -311,3 +341,34 @@ unsigned int *loadBadArr(){
 
     return arr;
 }
+
+int parse_input(int argc, char *argv[]){
+    int opt;
+    int res;
+    res = 0; // initialize to fail
+
+    // ':' after option letter designates it will consume the next section as an argument for the option
+    while ((opt = getopt(argc, argv, "f:t:d")) != -1) {
+        switch(opt){
+            case 'f':
+                my_config.file = optarg;
+                break;
+            case 'd':
+                my_config.DEBUG = 1;
+                break;
+            case 't':
+                my_config.threads = strtoul(optarg, NULL, 10);
+                if (errno){
+                    fprintf(stderr, "Input %s throws error:\n\t%s\n\n", optarg, strerror(errno));
+                    res = 1;
+                }
+        }
+    }
+
+    for(; optind < argc; ++optind){
+        printf("extra arguments: %s\n", argv[optind]);
+    }
+
+    return res;
+}
+//_END___Validation and Testing__________
